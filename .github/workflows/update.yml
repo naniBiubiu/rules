@@ -43,7 +43,7 @@ jobs:
 
       - name: Build sing-rules-converter from source
         run: |
-          git clone https://github.com/puernya/sing-rules-converter.git
+          git clone https://github.com/solanab/sing-rules-converter.git
           cd sing-rules-converter
           go build
           # put the binary somewhere in PATH
