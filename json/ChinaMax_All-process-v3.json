@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "rules": [
+    {
+      "process_name": [
+        "com.taobao.taobao",
+        "com.bilibili.app.blue",
+        "com.bilibili.app.in",
+        "com.bilibili.comic",
+        "com.bilibili.comic.intl",
+        "tv.danmaku.bili",
+        "tv.danmaku.bilibilihd",
+        "com.zhiliaoapp.musically",
+        "com.jjwxc.reader",
+        "com.xiaomi.mibrain.speech",
+        "Thunder",
+        "com.qiyi.video"
+      ]
+    }
+  ]
+}
