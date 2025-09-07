@@ -3,11 +3,11 @@ name: Update rules, convert, and publish
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"  # daily at 03:00 UTC
+    - cron: "0 * * * *"  # every hour at :00 UTC
   push:
     paths:
-      - rules.txt
-      - .github/workflows/update.yml
+      - list_rules.txt
+      - .github/workflows/update_list_rules.yml
 
 permissions:
   contents: write
@@ -46,11 +46,10 @@ jobs:
           git clone https://github.com/solanab/sing-rules-converter.git
           cd sing-rules-converter
           go build
-          # put the binary somewhere in PATH
           mv sing-rules-converter $HOME/go/bin/
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: Download .list files from rules.txt
+      - name: Download .list files from list_rules.txt
         shell: bash
         run: |
           set -euo pipefail
@@ -61,7 +60,7 @@ jobs:
             [[ "$base" != *.list ]] && base="${base}.list"
             echo "Fetching: $url -> list/$base"
             curl -fsSL "$url" -o "list/$base"
-          done < rules.txt
+          done < list_rules.txt
 
       - name: Convert .list -> .json/.srs
         shell: bash
