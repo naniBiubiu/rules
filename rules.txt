@@ -1,6 +1,6 @@
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Advertising/Advertising_All.list
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Microsoft/Microsoft.list
-https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Apple_All/Apple_All.list
+https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Apple/Apple_All.list
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Google/Google.list
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Amazon/Amazon.list
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Github/Github.list
