@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - list_rules.txt
+      - json_rules.txt
       - .github/workflows/update.yml
 
 permissions:
@@ -79,6 +80,60 @@ jobs:
           shopt -s nullglob
           for f in list/*.json; do mv -f "$f" json/; done
           for f in list/*.srs; do mv -f "$f" srs/; done
+
+      # ===== JSON-specific bits below (minimal additions) =====
+
+      - name: Install sing-box
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /etc/apt/keyrings
+          sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc
+          sudo chmod a+r /etc/apt/keyrings/sagernet.asc
+          echo '
+          Types: deb
+          URIs: https://deb.sagernet.org/
+          Suites: *
+          Components: *
+          Enabled: yes
+          Signed-By: /etc/apt/keyrings/sagernet.asc
+          ' | sudo tee /etc/apt/sources.list.d/sagernet.sources
+          sudo apt-get update
+          sudo apt-get install -y sing-box
+
+      - name: Download .json files from json_rules.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          rules="json_rules.txt"
+          if [[ -s "$rules" ]]; then
+            echo "Using rules file: $rules"
+            while IFS= read -r url || [[ -n "$url" ]]; do
+              [[ -z "${url// }" || "${url}" =~ ^[[:space:]]*# ]] && continue
+              clean="${url%%\?*}"
+              base="$(basename "$clean")"
+              [[ "$base" != *.json ]] && base="${base}.json"
+              echo "Fetching: $url -> json/$base"
+              curl -fsSL "$url" -o "json/$base"
+            done < "$rules"
+          else
+            echo "json_rules.txt missing or empty; skipping JSON downloads."
+          fi
+
+
+      - name: Compile json/*.json -> srs/*.srs with sing-box
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in json/*.json; do
+            base="$(basename "${f%.json}")"
+            out="srs/${base}.srs"
+            echo "Compiling $f -> $out"
+            sing-box rule-set compile --output "$out" "$f"
+          done
+
+      # ===== end of JSON-specific additions =====
 
       - name: Commit & push if changed
         env:
