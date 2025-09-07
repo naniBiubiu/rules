@@ -7,7 +7,7 @@ on:
   push:
     paths:
       - list_rules.txt
-      - .github/workflows/update_list_rules.yml
+      - .github/workflows/update.yml
 
 permissions:
   contents: write
