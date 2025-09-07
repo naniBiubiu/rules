@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -31,7 +31,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Safely empty the directories (files and subdirs), but keep the dirs themselves.
           for d in list json srs; do
             mkdir -p "$d"
             find "$d" -mindepth 1 -exec rm -rf {} +
@@ -42,9 +41,13 @@ jobs:
         with:
           go-version: "1.22.x"
 
-      - name: Install sing-rules-converter
+      - name: Build sing-rules-converter from source
         run: |
-          go install github.com/solanab/sing-rules-converter@latest
+          git clone https://github.com/puernya/sing-rules-converter.git
+          cd sing-rules-converter
+          go build
+          # put the binary somewhere in PATH
+          mv sing-rules-converter $HOME/go/bin/
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Download .list files from rules.txt
