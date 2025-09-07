@@ -1,0 +1,94 @@
+name: Update rules, convert, and publish
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"  # daily at 03:00 UTC
+  push:
+    paths:
+      - rules.txt
+      - .github/workflows/update.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Ensure directories exist
+        run: |
+          mkdir -p list json srs
+
+      - name: Clean list/, json/, srs/
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Safely empty the directories (files and subdirs), but keep the dirs themselves.
+          for d in list json srs; do
+            mkdir -p "$d"
+            find "$d" -mindepth 1 -exec rm -rf {} +
+          done
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+
+      - name: Install sing-rules-converter
+        run: |
+          go install github.com/solanab/sing-rules-converter@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Download .list files from rules.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r url || [[ -n "$url" ]]; do
+            [[ -z "${url// }" || "${url}" =~ ^[[:space:]]*# ]] && continue
+            clean="${url%%\?*}"
+            base="$(basename "$clean")"
+            [[ "$base" != *.list ]] && base="${base}.list"
+            echo "Fetching: $url -> list/$base"
+            curl -fsSL "$url" -o "list/$base"
+          done < rules.txt
+
+      - name: Convert .list -> .json/.srs
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in list/*.list; do
+            echo "Converting $f"
+            sing-rules-converter "$f"
+          done
+
+      - name: Move generated files into json/ and srs/
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in list/*.json; do mv -f "$f" json/; done
+          for f in list/*.srs; do mv -f "$f" srs/; done
+
+      - name: Commit & push if changed
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add list json srs || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: clean, update rules, and regenerate"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
