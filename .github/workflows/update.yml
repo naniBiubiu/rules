@@ -3,7 +3,7 @@ name: Update rules, convert, and publish
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 0 * * *"
   push:
     paths:
       - list_rules.txt
