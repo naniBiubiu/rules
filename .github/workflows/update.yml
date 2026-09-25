@@ -6,8 +6,8 @@ on:
     - cron: "0 0 * * *"
   push:
     paths:
-      - list_rules.txt
-      - json_rules.txt
+      - rules_list.txt
+      - rules_json.txt
       - list2singbox.py
       - .github/workflows/update.yml
 
@@ -62,11 +62,11 @@ jobs:
           sudo apt-get install -y sing-box
           sing-box version
 
-      - name: Download .list files from list_rules.txt
+      - name: Download .list files from rules_list.txt
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -s list_rules.txt ]]; then
+          if [[ -s rules_list.txt ]]; then
             while IFS= read -r url || [[ -n "$url" ]]; do
               [[ -z "${url// }" || "${url}" =~ ^[[:space:]]*# ]] && continue
               clean="${url%%\?*}"
@@ -74,9 +74,9 @@ jobs:
               [[ "$base" != *.list ]] && base="${base}.list"
               echo "Fetching: $url -> list/$base"
               curl -fsSL "$url" -o "list/$base"
-            done < list_rules.txt
+            done < rules_list.txt
           else
-            echo "list_rules.txt missing or empty; skipping .list downloads."
+            echo "rules_list.txt missing or empty; skipping .list downloads."
           fi
 
       # ===== Replaces the old "Build sing-rules-converter from source" +
@@ -85,7 +85,7 @@ jobs:
       #       "-v, --version uint8  Rule set version (1-3) (default 3)").
       #       list2singbox.py writes version 5 directly, and the actual
       #       .srs is produced later by the official `sing-box rule-set
-      #       compile`, same as the json_rules.txt path below. =====
+      #       compile`, same as the rules_json.txt path below. =====
       - name: Convert .list -> .json (version 5) with list2singbox.py
         shell: bash
         run: |
@@ -96,11 +96,11 @@ jobs:
             python3 list2singbox.py "$f" -o "json/$(basename "${f%.list}.json")"
           done
 
-      - name: Download .json files from json_rules.txt
+      - name: Download .json files from rules_json.txt
         shell: bash
         run: |
           set -euo pipefail
-          rules="json_rules.txt"
+          rules="rules_json.txt"
           if [[ -s "$rules" ]]; then
             echo "Using rules file: $rules"
             while IFS= read -r url || [[ -n "$url" ]]; do
@@ -112,7 +112,7 @@ jobs:
               curl -fsSL "$url" -o "json/$base"
             done < "$rules"
           else
-            echo "json_rules.txt missing or empty; skipping JSON downloads."
+            echo "rules_json.txt missing or empty; skipping JSON downloads."
           fi
 
       - name: Compile json/*.json -> srs/*.srs with sing-box
