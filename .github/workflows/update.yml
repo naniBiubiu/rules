@@ -8,6 +8,7 @@ on:
     paths:
       - list_rules.txt
       - json_rules.txt
+      - list2singbox.py
       - .github/workflows/update.yml
 
 permissions:
@@ -37,51 +38,10 @@ jobs:
             find "$d" -mindepth 1 -exec rm -rf {} +
           done
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          go-version: "1.22.x"
-
-      - name: Build sing-rules-converter from source
-        run: |
-          git clone https://github.com/solanab/sing-rules-converter.git
-          cd sing-rules-converter
-          go build
-          mv sing-rules-converter $HOME/go/bin/
-          echo "$HOME/go/bin" >> $GITHUB_PATH
-
-      - name: Download .list files from list_rules.txt
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r url || [[ -n "$url" ]]; do
-            [[ -z "${url// }" || "${url}" =~ ^[[:space:]]*# ]] && continue
-            clean="${url%%\?*}"
-            base="$(basename "$clean")"
-            [[ "$base" != *.list ]] && base="${base}.list"
-            echo "Fetching: $url -> list/$base"
-            curl -fsSL "$url" -o "list/$base"
-          done < list_rules.txt
-
-      - name: Convert .list -> .json/.srs
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for f in list/*.list; do
-            echo "Converting $f"
-            sing-rules-converter "$f"
-          done
-
-      - name: Move generated files into json/ and srs/
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for f in list/*.json; do mv -f "$f" json/; done
-          for f in list/*.srs; do mv -f "$f" srs/; done
-
-      # ===== JSON-specific bits below (minimal additions) =====
+          python-version: "3.x"
 
       - name: Install sing-box
         shell: bash
@@ -100,6 +60,41 @@ jobs:
           ' | sudo tee /etc/apt/sources.list.d/sagernet.sources
           sudo apt-get update
           sudo apt-get install -y sing-box
+          sing-box version
+
+      - name: Download .list files from list_rules.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -s list_rules.txt ]]; then
+            while IFS= read -r url || [[ -n "$url" ]]; do
+              [[ -z "${url// }" || "${url}" =~ ^[[:space:]]*# ]] && continue
+              clean="${url%%\?*}"
+              base="$(basename "$clean")"
+              [[ "$base" != *.list ]] && base="${base}.list"
+              echo "Fetching: $url -> list/$base"
+              curl -fsSL "$url" -o "list/$base"
+            done < list_rules.txt
+          else
+            echo "list_rules.txt missing or empty; skipping .list downloads."
+          fi
+
+      # ===== Replaces the old "Build sing-rules-converter from source" +
+      #       "Convert .list -> .json/.srs" steps. That third-party Go tool
+      #       is capped at rule-set version 3 (its own docs say
+      #       "-v, --version uint8  Rule set version (1-3) (default 3)").
+      #       list2singbox.py writes version 5 directly, and the actual
+      #       .srs is produced later by the official `sing-box rule-set
+      #       compile`, same as the json_rules.txt path below. =====
+      - name: Convert .list -> .json (version 5) with list2singbox.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in list/*.list; do
+            echo "Converting $f"
+            python3 list2singbox.py "$f" -o "json/$(basename "${f%.list}.json")"
+          done
 
       - name: Download .json files from json_rules.txt
         shell: bash
@@ -120,7 +115,6 @@ jobs:
             echo "json_rules.txt missing or empty; skipping JSON downloads."
           fi
 
-
       - name: Compile json/*.json -> srs/*.srs with sing-box
         shell: bash
         run: |
@@ -132,8 +126,6 @@ jobs:
             echo "Compiling $f -> $out"
             sing-box rule-set compile --output "$out" "$f"
           done
-
-      # ===== end of JSON-specific additions =====
 
       - name: Commit & push if changed
         env:
